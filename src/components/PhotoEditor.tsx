@@ -1,8 +1,11 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { type PassportStandard } from "@/data/passportStandards";
-import { ZoomIn, ZoomOut, RotateCcw, Move } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, Move, Sparkles, ScanFace } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { useFaceDetection } from "@/hooks/useFaceDetection";
+import { FaceValidationStatus } from "@/components/FaceValidationStatus";
+import { toast } from "sonner";
 
 interface PhotoEditorProps {
   imageSrc: string;
@@ -22,6 +25,19 @@ export function PhotoEditor({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showFaceBox, setShowFaceBox] = useState(false);
+
+  const {
+    isLoading,
+    isModelLoading,
+    loadingProgress,
+    detectedFace,
+    validation,
+    error,
+    detectFace,
+    validateFace,
+    calculateAutoPosition,
+  } = useFaceDetection();
 
   const aspectRatio = standard.width / standard.height;
   const canvasSize = 400;
@@ -32,7 +48,6 @@ export function PhotoEditor({
     const img = new Image();
     img.onload = () => {
       setImage(img);
-      // Calculate initial scale to fit the image
       const scaleX = canvasWidth / img.width;
       const scaleY = canvasHeight / img.height;
       const initialScale = Math.max(scaleX, scaleY) * 1.2;
@@ -49,18 +64,31 @@ export function PhotoEditor({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Fill with background color
     ctx.fillStyle = standard.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw image
     const imgWidth = image.width * scale;
     const imgHeight = image.height * scale;
     const x = (canvas.width - imgWidth) / 2 + position.x;
     const y = (canvas.height - imgHeight) / 2 + position.y;
 
     ctx.drawImage(image, x, y, imgWidth, imgHeight);
-  }, [image, scale, position, standard.backgroundColor]);
+
+    // Draw face detection box if available
+    if (showFaceBox && detectedFace && image) {
+      const { box } = detectedFace;
+      const boxX = x + box.xmin * scale;
+      const boxY = y + box.ymin * scale;
+      const boxWidth = (box.xmax - box.xmin) * scale;
+      const boxHeight = (box.ymax - box.ymin) * scale;
+
+      ctx.strokeStyle = validation?.isValid ? "hsl(142, 76%, 36%)" : "hsl(38, 92%, 50%)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+      ctx.setLineDash([]);
+    }
+  }, [image, scale, position, standard.backgroundColor, showFaceBox, detectedFace, validation]);
 
   useEffect(() => {
     drawCanvas();
@@ -111,6 +139,51 @@ export function PhotoEditor({
     const initialScale = Math.max(scaleX, scaleY) * 1.2;
     setScale(initialScale);
     setPosition({ x: 0, y: 0 });
+    setShowFaceBox(false);
+  };
+
+  const handleAutoDetect = async () => {
+    if (!image) return;
+
+    const face = await detectFace(imageSrc);
+    if (face) {
+      setShowFaceBox(true);
+      validateFace(face, image.width, image.height, standard);
+      toast.success("Face detected! Review the validation results below.");
+    }
+  };
+
+  const handleAutoCenter = async () => {
+    if (!image) return;
+
+    let face = detectedFace;
+    if (!face) {
+      face = await detectFace(imageSrc);
+    }
+
+    if (face) {
+      const autoPos = calculateAutoPosition(
+        face,
+        image.width,
+        image.height,
+        canvasWidth,
+        canvasHeight,
+        standard
+      );
+
+      setScale(autoPos.scale);
+      setPosition(autoPos.position);
+      setShowFaceBox(true);
+
+      // Re-validate with new position
+      setTimeout(() => {
+        if (face) {
+          validateFace(face, image.width, image.height, standard);
+        }
+      }, 100);
+
+      toast.success("Photo auto-centered to meet passport requirements!");
+    }
   };
 
   const exportCroppedImage = () => {
@@ -120,7 +193,6 @@ export function PhotoEditor({
     onCropComplete(dataUrl);
   };
 
-  // Calculate guide positions
   const headTop = canvasHeight * (1 - standard.headHeightMax / 100);
   const headBottom = canvasHeight * (1 - standard.headHeightMin / 100);
   const eyeLine = canvasHeight * (1 - standard.eyeLineFromBottom / 100);
@@ -134,6 +206,36 @@ export function PhotoEditor({
           Reset
         </Button>
       </div>
+
+      {/* AI Face Detection Controls */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          onClick={handleAutoDetect}
+          disabled={isLoading || isModelLoading}
+          className="flex-1 gap-2"
+        >
+          <ScanFace className="h-4 w-4" />
+          {isLoading ? "Detecting..." : "Detect Face"}
+        </Button>
+        <Button
+          onClick={handleAutoCenter}
+          disabled={isLoading || isModelLoading}
+          className="flex-1 gap-2"
+        >
+          <Sparkles className="h-4 w-4" />
+          {isLoading ? "Processing..." : "Auto-Center"}
+        </Button>
+      </div>
+
+      {/* Validation Status */}
+      <FaceValidationStatus
+        validation={validation}
+        isLoading={isLoading}
+        isModelLoading={isModelLoading}
+        loadingProgress={loadingProgress}
+        error={error}
+      />
 
       <div
         ref={containerRef}
