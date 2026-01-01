@@ -259,7 +259,7 @@ export function PhotoEditor({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Adjust Your Photo</h3>
-        <Button variant="ghost" size="sm" onClick={handleReset} className="gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={handleReset} className="gap-2">
           <RotateCcw className="h-4 w-4" />
           Reset
         </Button>
@@ -268,6 +268,7 @@ export function PhotoEditor({
       {/* AI Face Detection Controls */}
       <div className="flex gap-2">
         <Button
+          type="button"
           variant="outline"
           onClick={handleAutoDetect}
           disabled={isLoading || isModelLoading}
@@ -277,6 +278,7 @@ export function PhotoEditor({
           {isLoading ? "Detecting..." : "Detect Face"}
         </Button>
         <Button
+          type="button"
           onClick={handleAutoCenter}
           disabled={isLoading || isModelLoading}
           className="flex-1 gap-2"
@@ -430,6 +432,7 @@ export function PhotoEditor({
       {/* Zoom controls */}
       <div className="flex items-center gap-4">
         <Button
+          type="button"
           variant="outline"
           size="icon"
           onClick={() => setScale((s) => Math.max(0.5, s - 0.1))}
@@ -445,6 +448,7 @@ export function PhotoEditor({
           className="flex-1"
         />
         <Button
+          type="button"
           variant="outline"
           size="icon"
           onClick={() => setScale((s) => Math.min(3, s + 0.1))}
@@ -454,7 +458,7 @@ export function PhotoEditor({
       </div>
 
       <div className="flex gap-3">
-        <Button onClick={exportCroppedImage} className="flex-1" size="lg">
+        <Button type="button" onClick={exportCroppedImage} className="flex-1" size="lg">
           Confirm & Continue
         </Button>
       </div>
