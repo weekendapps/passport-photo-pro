@@ -51,7 +51,11 @@ export function BackgroundRemovalControls({
         <Button
           type="button"
           variant={isBackgroundRemoved ? "secondary" : "outline"}
-          onClick={onRemoveBackground}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemoveBackground();
+          }}
           disabled={isLoading || isModelLoading}
           className="flex-1 gap-2"
         >
@@ -99,7 +103,9 @@ export function BackgroundRemovalControls({
                   variant="ghost"
                   size="sm"
                   className="h-auto py-1 px-2 text-xs"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     onColorChange(requiredColor);
                     setIsColorPickerOpen(false);
                   }}

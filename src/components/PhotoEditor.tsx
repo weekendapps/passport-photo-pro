@@ -270,7 +270,11 @@ export function PhotoEditor({
         <Button
           type="button"
           variant="outline"
-          onClick={handleAutoDetect}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleAutoDetect();
+          }}
           disabled={isLoading || isModelLoading}
           className="flex-1 gap-2"
         >
@@ -279,7 +283,11 @@ export function PhotoEditor({
         </Button>
         <Button
           type="button"
-          onClick={handleAutoCenter}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleAutoCenter();
+          }}
           disabled={isLoading || isModelLoading}
           className="flex-1 gap-2"
         >
