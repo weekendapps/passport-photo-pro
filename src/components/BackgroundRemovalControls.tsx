@@ -49,6 +49,7 @@ export function BackgroundRemovalControls({
     <div className="space-y-3">
       <div className="flex gap-2">
         <Button
+          type="button"
           variant={isBackgroundRemoved ? "secondary" : "outline"}
           onClick={onRemoveBackground}
           disabled={isLoading || isModelLoading}
@@ -94,6 +95,7 @@ export function BackgroundRemovalControls({
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Background Color</span>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   className="h-auto py-1 px-2 text-xs"
