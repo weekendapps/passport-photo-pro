@@ -4,7 +4,9 @@ import { ZoomIn, ZoomOut, RotateCcw, Move, Sparkles, ScanFace } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useFaceDetection } from "@/hooks/useFaceDetection";
+import { useBackgroundRemoval } from "@/hooks/useBackgroundRemoval";
 import { FaceValidationStatus } from "@/components/FaceValidationStatus";
+import { BackgroundRemovalControls } from "@/components/BackgroundRemovalControls";
 import { toast } from "sonner";
 
 interface PhotoEditorProps {
@@ -21,11 +23,14 @@ export function PhotoEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [processedImageSrc, setProcessedImageSrc] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [showFaceBox, setShowFaceBox] = useState(false);
+  const [isBackgroundRemoved, setIsBackgroundRemoved] = useState(false);
+  const [backgroundColor, setBackgroundColor] = useState(standard.backgroundColor);
 
   const {
     isLoading,
@@ -38,6 +43,14 @@ export function PhotoEditor({
     validateFace,
     calculateAutoPosition,
   } = useFaceDetection();
+
+  const {
+    isLoading: isBgLoading,
+    isModelLoading: isBgModelLoading,
+    loadingProgress: bgLoadingProgress,
+    error: bgError,
+    removeBackground,
+  } = useBackgroundRemoval();
 
   const aspectRatio = standard.width / standard.height;
   const canvasSize = 400;
@@ -186,6 +199,51 @@ export function PhotoEditor({
     }
   };
 
+  const handleRemoveBackground = async () => {
+    if (!image) return;
+
+    try {
+      const processedSrc = await removeBackground(image, backgroundColor);
+      setProcessedImageSrc(processedSrc);
+      setIsBackgroundRemoved(true);
+
+      // Load the processed image
+      const processedImg = new Image();
+      processedImg.onload = () => {
+        setImage(processedImg);
+        toast.success("Background removed and replaced successfully!");
+      };
+      processedImg.src = processedSrc;
+    } catch (err) {
+      toast.error("Failed to remove background. Please try again.");
+    }
+  };
+
+  const handleBackgroundColorChange = async (color: string) => {
+    setBackgroundColor(color);
+    
+    // If background is already removed, reprocess with new color
+    if (isBackgroundRemoved && processedImageSrc) {
+      // Load original image to reprocess
+      const originalImg = new Image();
+      originalImg.onload = async () => {
+        try {
+          const processedSrc = await removeBackground(originalImg, color);
+          setProcessedImageSrc(processedSrc);
+          
+          const processedImg = new Image();
+          processedImg.onload = () => {
+            setImage(processedImg);
+          };
+          processedImg.src = processedSrc;
+        } catch (err) {
+          console.error("Failed to update background color:", err);
+        }
+      };
+      originalImg.src = imageSrc;
+    }
+  };
+
   const exportCroppedImage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -235,6 +293,19 @@ export function PhotoEditor({
         isModelLoading={isModelLoading}
         loadingProgress={loadingProgress}
         error={error}
+      />
+
+      {/* Background Removal Controls */}
+      <BackgroundRemovalControls
+        isLoading={isBgLoading}
+        isModelLoading={isBgModelLoading}
+        loadingProgress={bgLoadingProgress}
+        error={bgError}
+        isBackgroundRemoved={isBackgroundRemoved}
+        selectedColor={backgroundColor}
+        requiredColor={standard.backgroundColor}
+        onRemoveBackground={handleRemoveBackground}
+        onColorChange={handleBackgroundColorChange}
       />
 
       <div
